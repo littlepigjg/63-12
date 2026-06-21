@@ -8,3 +8,4 @@ export { useClients } from './useClients';
 export { useEncryption } from './useEncryption';
 export { useDocumentVisibility } from './useDocumentVisibility';
 export { sseManager } from './sseManager';
+export { useApprovals } from './useApprovals';

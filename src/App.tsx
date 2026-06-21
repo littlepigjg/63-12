@@ -5,6 +5,7 @@ import Configs from '@/pages/Configs';
 import Encryption from '@/pages/Encryption';
 import Logs from '@/pages/Logs';
 import Clients from '@/pages/Clients';
+import Approvals from '@/pages/Approvals';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/configs" element={<Configs />} />
+          <Route path="/approvals" element={<Approvals />} />
           <Route path="/encryption" element={<Encryption />} />
           <Route path="/logs" element={<Logs />} />
           <Route path="/clients" element={<Clients />} />

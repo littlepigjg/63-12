@@ -63,3 +63,62 @@ export interface PullResponse {
 }
 
 export type LogType = LogEntry['type'];
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'emergency';
+
+export type ApprovalOperation = 'create' | 'update' | 'delete';
+
+export interface Approver {
+  id: string;
+  name: string;
+  type: 'user' | 'group';
+}
+
+export interface ApprovalConfig {
+  id: string;
+  projectId: string;
+  environment: string;
+  configKeyPattern: string;
+  approvers: Approver[];
+  requireAllApprovers: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  projectId: string;
+  environment: string;
+  configKey: string;
+  operation: ApprovalOperation;
+  oldValue?: ConfigItem;
+  newValue?: ConfigItem;
+  status: ApprovalStatus;
+  submittedBy: string;
+  submittedAt: string;
+  approvals: ApprovalAction[];
+  rejectReason?: string;
+  emergencyReason?: string;
+  emergencyUser?: string;
+}
+
+export interface ApprovalAction {
+  approverId: string;
+  approverName: string;
+  action: 'approved' | 'rejected';
+  comment?: string;
+  timestamp: string;
+}
+
+export interface ApprovalConfigData {
+  approvalConfigs: ApprovalConfig[];
+  approvalRequests: ApprovalRequest[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  role: 'admin' | 'developer' | 'approver' | 'emergency';
+  email?: string;
+}

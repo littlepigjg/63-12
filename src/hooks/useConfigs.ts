@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { api } from '@/utils/api';
 import { useSSE } from './useSSE';
 import { useDocumentVisibility } from './useDocumentVisibility';
-import type { ConfigItem } from '../../shared/types';
+import type { ConfigItem, ApprovalRequest, ApprovalConfig } from '../../shared/types';
 
 interface UseConfigsOptions {
   projectId: string | null;
@@ -49,43 +49,146 @@ export function useConfigs(options: UseConfigsOptions) {
     }
   }, [projectId, envName]);
 
-  const addConfig = useCallback(async (key: string, value: string, description?: string, encrypted?: boolean) => {
-    if (!projectId || !envName) return null;
-    const res = await api.post<ConfigItem>(`/projects/${projectId}/envs/${envName}`, {
+  const addConfig = useCallback(async (
+    key: string,
+    value: string,
+    description?: string,
+    encrypted?: boolean,
+    useEmergency?: boolean,
+    emergencyReason?: string,
+    submittedBy?: string
+  ): Promise<{
+    success: boolean;
+    data?: ConfigItem | ApprovalRequest;
+    requiresApproval?: boolean;
+    emergency?: boolean;
+    message?: string;
+  }> => {
+    if (!projectId || !envName) return { success: false };
+    const res = await api.post<ConfigItem | ApprovalRequest>(`/projects/${projectId}/envs/${envName}`, {
       key,
       value,
       description,
       encrypted,
+      useEmergency,
+      emergencyReason,
+      submittedBy,
     });
-    if (res.success && res.data) {
-      lastFetchRef.current = 0;
-      await fetchConfigs();
-      return res.data;
-    }
-    return null;
-  }, [projectId, envName, fetchConfigs]);
-
-  const updateConfig = useCallback(async (key: string, updates: Partial<ConfigItem>) => {
-    if (!projectId || !envName) return null;
-    const res = await api.put<ConfigItem>(`/projects/${projectId}/envs/${envName}/${key}`, updates);
-    if (res.success && res.data) {
-      lastFetchRef.current = 0;
-      await fetchConfigs();
-      return res.data;
-    }
-    return null;
-  }, [projectId, envName, fetchConfigs]);
-
-  const deleteConfig = useCallback(async (key: string) => {
-    if (!projectId || !envName) return false;
-    const res = await api.delete(`/projects/${projectId}/envs/${envName}/${key}`);
     if (res.success) {
-      lastFetchRef.current = 0;
-      await fetchConfigs();
-      return true;
+      const responseData = res as any;
+      if (responseData.requiresApproval && !useEmergency) {
+        return {
+          success: true,
+          data: res.data as ApprovalRequest,
+          requiresApproval: true,
+          message: responseData.message,
+        };
+      } else {
+        lastFetchRef.current = 0;
+        await fetchConfigs();
+        return {
+          success: true,
+          data: res.data as ConfigItem,
+          requiresApproval: false,
+          emergency: responseData.emergency,
+        };
+      }
     }
-    return false;
+    return { success: false, message: (res as any).error };
   }, [projectId, envName, fetchConfigs]);
+
+  const updateConfig = useCallback(async (
+    key: string,
+    updates: Partial<ConfigItem>,
+    useEmergency?: boolean,
+    emergencyReason?: string,
+    submittedBy?: string
+  ): Promise<{
+    success: boolean;
+    data?: ConfigItem | ApprovalRequest;
+    requiresApproval?: boolean;
+    emergency?: boolean;
+    message?: string;
+  }> => {
+    if (!projectId || !envName) return { success: false };
+    const res = await api.put<ConfigItem | ApprovalRequest>(`/projects/${projectId}/envs/${envName}/${key}`, {
+      ...updates,
+      useEmergency,
+      emergencyReason,
+      submittedBy,
+    });
+    if (res.success) {
+      const responseData = res as any;
+      if (responseData.requiresApproval && !useEmergency) {
+        return {
+          success: true,
+          data: res.data as ApprovalRequest,
+          requiresApproval: true,
+          message: responseData.message,
+        };
+      } else {
+        lastFetchRef.current = 0;
+        await fetchConfigs();
+        return {
+          success: true,
+          data: res.data as ConfigItem,
+          requiresApproval: false,
+          emergency: responseData.emergency,
+        };
+      }
+    }
+    return { success: false, message: (res as any).error };
+  }, [projectId, envName, fetchConfigs]);
+
+  const deleteConfig = useCallback(async (
+    key: string,
+    useEmergency?: boolean,
+    emergencyReason?: string,
+    submittedBy?: string
+  ): Promise<{
+    success: boolean;
+    data?: ApprovalRequest;
+    requiresApproval?: boolean;
+    emergency?: boolean;
+    message?: string;
+  }> => {
+    if (!projectId || !envName) return { success: false };
+    const result = await api.delete<any>(`/projects/${projectId}/envs/${envName}/${key}`, {
+      useEmergency,
+      emergencyReason,
+      submittedBy,
+    }) as any;
+    if (result.success) {
+      if (result.requiresApproval && !useEmergency) {
+        return {
+          success: true,
+          data: result.data as ApprovalRequest,
+          requiresApproval: true,
+          message: result.message,
+        };
+      } else {
+        lastFetchRef.current = 0;
+        await fetchConfigs();
+        return {
+          success: true,
+          requiresApproval: false,
+          emergency: result.emergency,
+        };
+      }
+    }
+    return { success: false, message: result.error };
+  }, [projectId, envName, fetchConfigs]);
+
+  const checkApprovalRequirement = useCallback(async (configKey: string) => {
+    if (!projectId || !envName) return { requiresApproval: false, approvalConfig: null };
+    const res = await api.get<{ requiresApproval: boolean; approvalConfig: ApprovalConfig | null }>(
+      `/approvals/check/${projectId}/${envName}/${configKey}`
+    );
+    if (res.success && res.data) {
+      return res.data;
+    }
+    return { requiresApproval: false, approvalConfig: null };
+  }, [projectId, envName]);
 
   const encryptConfig = useCallback(async (key: string) => {
     if (!projectId || !envName) return null;
@@ -146,5 +249,6 @@ export function useConfigs(options: UseConfigsOptions) {
     deleteConfig,
     encryptConfig,
     decryptConfig,
+    checkApprovalRequirement,
   };
 }

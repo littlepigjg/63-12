@@ -1,0 +1,30 @@
+{
+  "approvalConfigs": [],
+  "approvalRequests": [],
+  "users": [
+    {
+      "id": "user_admin",
+      "name": "admin",
+      "role": "admin",
+      "email": "admin@example.com"
+    },
+    {
+      "id": "user_developer",
+      "name": "developer",
+      "role": "developer",
+      "email": "dev@example.com"
+    },
+    {
+      "id": "user_approver",
+      "name": "approver",
+      "role": "approver",
+      "email": "approver@example.com"
+    },
+    {
+      "id": "user_emergency",
+      "name": "emergency_admin",
+      "role": "emergency",
+      "email": "emergency@example.com"
+    }
+  ]
+}
